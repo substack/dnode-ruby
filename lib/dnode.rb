@@ -38,13 +38,23 @@ class DNode
     class Listener < EM::Connection
     end
     
+    ##
+    # Call sthis when you have no EM running.
     def listen *args, &block
         params = from_args(*args, &block).merge(:instance => @instance)
         EM.run do
-            EM.start_server(params[:host], params[:port], Listener) do |c|
-                conn = Conn.new(params.merge :conn => c)
-                handle_conn(c, conn)
-            end
+            start(params, &block)
         end
     end
+    
+    ##
+    # Call this when an EventLoop is already running
+    def start(params, &block)
+          EM.start_server(params[:host], params[:port], Listener) do |c|
+              conn = Conn.new(params.merge :conn => c)
+              handle_conn(c, conn)
+          end
+      end
+    end
+    
 end
