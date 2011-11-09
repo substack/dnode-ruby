@@ -5,7 +5,6 @@
 module DNode
   class Client < EventMachine::Connection
     include EventMachine::Protocols::LineText2
-    include Events::Emitter
 
     def self.from_args *args, &block
       types = args.inject({}) { |acc,x| acc.merge(x.class.to_s => x) }
@@ -49,6 +48,7 @@ module DNode
   ##
   # Called when connection terminates
   def unbind
+    puts 'unbind'
   end
 
   ##
@@ -84,8 +84,6 @@ module DNode
       else
         @block.call(*[ js, self ][ 0 .. @block.arity - 1 ])
       end
-      self.emit('remote', js)
-      self.emit('ready')
     end
   end
 

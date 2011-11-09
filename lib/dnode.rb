@@ -3,7 +3,6 @@ $:.include?(File.dirname(__FILE__)) || $:.include?(File.expand_path(File.dirname
  
 require 'rubygems'
 require 'eventmachine'
-require 'events'
 
 require 'dnode/client'
 require 'dnode/conn'
