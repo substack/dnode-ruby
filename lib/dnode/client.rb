@@ -32,6 +32,8 @@ module DNode
       EM.connect(params[:host], params[:port], DNode::Client, params)
     end
 
+    ##
+    # Called by EM loop when connected.
     def initialize params
       @block = params[:block] || lambda {}
       @instance = params[:instance] || {}
@@ -44,15 +46,19 @@ module DNode
     end)
   end
 
+  ##
+  # Called when connection terminates
   def unbind
-    puts "DEAD"
   end
 
-
+  ##
+  # Called when new line was received
   def receive_line(line)
     handle(JSON(line))
   end
 
+  ##
+  # Handling request
   def handle req
     args = @scrub.unscrub(req) do |id|
       lambda { |*argv| self.request(id, *argv) }
@@ -83,6 +89,8 @@ module DNode
     end
   end
 
+  ##
+  # Sending request
   def request(method, *args)
     scrubbed = @scrub.scrub(args)
     data = JSON({
@@ -93,9 +101,9 @@ module DNode
       end
       ),
       :links => [],
-    }.merge(scrubbed))
-    send_data(data + "\n")
+      }.merge(scrubbed))
+      send_data(data + "\n")
+    end
   end
-end
-  
+
 end
