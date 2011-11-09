@@ -27,7 +27,7 @@ module DNode
     ##
     # Initiates the connection. 
     def self.start *args, &block
-      params = from_args(*args, &block).merge(:instance => @instance)
+      params = from_args(*args, &block)
       EM.connect(params[:host], params[:port], DNode::Client, params)
     end
 
@@ -39,10 +39,7 @@ module DNode
       @scrub = Scrub.new
       @remote = {}
 
-      request('methods', if @instance.is_a? Proc
-      then @instance.call(*[@remote,self][0..@instance.arity-1])
-    else @instance
-    end)
+      request('methods', {})
   end
 
   ##
