@@ -1,6 +1,8 @@
-require 'rubygems'
-require 'dnode'
+$: << "."
+require File.dirname(__FILE__)+"/../../lib/dnode.rb"
 
-DNode.new({}).connect(5050) do |remote|
-    remote.f(30000, proc { |x| puts "x=<#{x}>" })
+DNode::Client.connect() do |server|
+  EM.add_periodic_timer(1) do
+    server.f(30000, proc { |x| puts "x=<#{x}>" })
+  end
 end
