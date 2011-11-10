@@ -9,6 +9,8 @@ require 'dnode/conn'
 require 'dnode/jsobject'
 require 'dnode/scrub'
 require 'dnode/walk'
+require 'dnode/request'
+require 'dnode/response'
 
 module DNode
 

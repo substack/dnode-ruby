@@ -35,70 +35,76 @@ module DNode
     # Called by EM loop when connected.
     def initialize params
       @block = params[:block] || lambda {}
-      @instance = params[:instance] || {}
-      @scrub = Scrub.new
-      @remote = {}
-
-      request('methods', {})
-  end
-
-  ##
-  # Called when connection terminates
-  def unbind
-    puts 'unbind'
-  end
-
-  ##
-  # Called when new line was received
-  def receive_line(line)
-    handle(JSON(line))
-  end
-
-  ##
-  # Handling request
-  def handle req
-    args = @scrub.unscrub(req) do |id|
-      lambda { |*argv| self.request(id, *argv) }
+      @requests = {} # A set of all current requests.
     end
 
-    if req['method'].is_a? Integer then
-      id = req['method']
-      cb = @scrub.callbacks[id]
-      if cb.arity < 0 then
-        cb.call(*JSObject.create(args))
-      else
-        argv = *JSObject.create(args)
-        padding = argv.length.upto(cb.arity - 1).map{ nil }
-        argv = argv.concat(padding).take(cb.arity)
-        cb.call(*argv)
-      end
-    elsif req['method'] == 'methods' then
-      @remote.update(args[0])
-      js = JSObject.create(@remote)
-
-      if @block.arity === 0 then
-        @block.call
-      else
-        @block.call(*[ js, self ][ 0 .. @block.arity - 1 ])
-      end
+    ##
+    # Called when connection terminates
+    def unbind
+      puts 'unbind'
     end
-  end
 
-  ##
-  # Sending request
-  def request(method, *args)
-    scrubbed = @scrub.scrub(args)
-    data = JSON({
-      :method => (
-      if method.respond_to? :match and method.match(/^\d+$/)
-        then method.to_i
-      else method
-      end
-      ),
-      :links => [],
-      }.merge(scrubbed))
-      send_data(data + "\n")
+    ##
+    # Called when new line was received
+    def receive_line(line)
+      puts "-> #{line}"
+      response = Response.new(line)
     end
-  end
+    
+    ##
+    # Creates requests with missing methods.
+    def method_missing(method_sym, *args, &block)
+      request = Request.new(method_sym, args, &block)
+      puts "<- #{request.data}"
+      send_data(request.data + "\n")
+    end
+
+    # ##
+    #  # Handling request
+    #  def handle req
+    #    args = @scrub.unscrub(req) do |id|
+    #      lambda { |*argv| self.request(id, *argv) }
+    #    end
+    # 
+    #    if req['method'].is_a? Integer then
+    #      id = req['method']
+    #      cb = @scrub.callbacks[id]
+    #      if cb.arity < 0 then
+    #        cb.call(*JSObject.create(args))
+    #      else
+    #        argv = *JSObject.create(args)
+    #        padding = argv.length.upto(cb.arity - 1).map{ nil }
+    #        argv = argv.concat(padding).take(cb.arity)
+    #        cb.call(*argv)
+    #      end
+    #    elsif req['method'] == 'methods' then
+    #      @remote.update(args[0])
+    #      js = JSObject.create(@remote)
+    # 
+    #      if @block.arity === 0 then
+    #        @block.call
+    #      else
+    #        @block.call(*[ js, self ][ 0 .. @block.arity - 1 ])
+    #      end
+    #    end
+    #  end
+    # 
+    #  ##
+    #  # Sending request
+    #  def request(method, *args)
+    #    scrubbed = @scrub.scrub(args)
+    #    data = JSON({
+    #      :method => (
+    #      if method.respond_to? :match and method.match(/^\d+$/)
+    #        then method.to_i
+    #      else method
+    #      end
+    #      ),
+    #      :links => [],
+    #      }.merge(scrubbed))
+    #      send_data(data + "\n")
+    #    end
+    end
+
 
 end
