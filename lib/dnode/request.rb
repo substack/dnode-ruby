@@ -7,11 +7,11 @@ module DNode
   
   class Request
     include EventMachine::Deferrable
-    attr_reader :data, :callbacks, :id, :block
+    attr_reader :data, :callbacks, :id, :callback
 
     @@id = 0
     
-    def initialize(method, *args, &block)
+    def initialize(method, *args, &callback)
       @id = @@id = @@id + 1
       
       method = if method.respond_to? :match and method.match(/^\d+$/)
@@ -19,10 +19,10 @@ module DNode
       else method
       end
       
-      @block = block || lambda {}
+      @callback = callback || lambda {}
       args.push "[Function]"
       
-      @callbacks = {@id => [@block.arity]}
+      @callbacks = {@id => [@callback.arity]}
       
       @data = JSON({
         :method => method,

@@ -8,10 +8,9 @@ module DNode
     def initialize(line, connection)
       @connection = connection
       resp = JSON(line)
-      
       if resp['method'].is_a? Integer 
         request = @connection.requests[resp['method']]
-        request.block() 
+        request.callback.call(*resp['arguments'])
       elsif resp['method'] == 'methods' 
         @connection.update_methods(resp['callbacks'])
       end
