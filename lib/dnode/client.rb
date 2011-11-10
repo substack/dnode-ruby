@@ -5,6 +5,7 @@
 module DNode
   class Client < EventMachine::Connection
     include EventMachine::Protocols::LineText2
+    attr_reader :requests
 
     def self.from_args *args, &block
       types = args.inject({}) { |acc,x| acc.merge(x.class.to_s => x) }
@@ -53,15 +54,21 @@ module DNode
     
     ##
     # Re-defines methods locally based on remote's methods.
-    def update_methods(methods)
-      # Here we need to add the right methods required for everything to run smooth!
-      methods.each do |signature, meth_id|
-        self.class.send(:define_method, signature) do |*args|
-          request = Request.new(meth_id, *args)
-          puts "<< #{request.data}"
-          send_data(request.data + "\n")
+    def update_methods(remotes)
+      remotes.each do |remote|
+        # Here we need to add the right methods required for everything to run smooth!
+        self.class.send(:define_method, remote[1][1]) do |*args|
+          send(Request.new(remote[1][0], *args))
         end
       end
+    end
+    
+    def send(request)
+      request.callbacks.each do |callback|
+        @requests[callback[0]] = request
+      end
+      puts "<< #{request.data}"
+      send_data(request.data + "\n")
     end
 
     # ##

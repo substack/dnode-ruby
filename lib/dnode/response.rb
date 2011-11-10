@@ -6,25 +6,14 @@ module DNode
   class Response
     
     def initialize(line, connection)
-      @scrub = Scrub.new
       @connection = connection
-      req = JSON(line)
+      resp = JSON(line)
       
-      puts req.inspect
-      
-      if req['method'].is_a? Integer then
-        id = req['method']
-        cb = @scrub.callbacks[id]
-        if cb.arity < 0 then
-          cb.call(*JSObject.create(args))
-        else
-          argv = *JSObject.create(args)
-          padding = argv.length.upto(cb.arity - 1).map{ nil }
-          argv = argv.concat(padding).take(cb.arity)
-          cb.call(*argv)
-        end
-      elsif req['method'] == 'methods' then
-        @connection.update_methods(args[0])
+      if resp['method'].is_a? Integer 
+        puts @connection.requests[resp['method']].block.inspect
+        @connection.requests[resp['method']].block(*resp['arguments']) 
+      elsif resp['method'] == 'methods' 
+        @connection.update_methods(resp['callbacks'])
       end
     end
 
