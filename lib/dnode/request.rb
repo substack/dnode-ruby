@@ -23,6 +23,8 @@ module DNode
         :links => [],
         }.merge(scrubbed))
         
+        
+        puts @data.inspect
     end
     
   end

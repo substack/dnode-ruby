@@ -10,14 +10,8 @@ module DNode
       @connection = connection
       req = JSON(line)
       
+      puts req.inspect
       
-      args = @scrub.unscrub(req) do |id|
-        # lambda { |*argv| 
-        #   self.request(id, *argv) 
-        # }
-        id
-      end
-
       if req['method'].is_a? Integer then
         id = req['method']
         cb = @scrub.callbacks[id]
@@ -31,13 +25,6 @@ module DNode
         end
       elsif req['method'] == 'methods' then
         @connection.update_methods(args[0])
-        # js = JSObject.create(@remote)
-        # 
-        # if @block.arity === 0 then
-        #   @block.call
-        # else
-        #   @block.call(*[ js, self ][ 0 .. @block.arity - 1 ])
-        # end
       end
     end
 

@@ -62,7 +62,6 @@ module DNode
           send_data(request.data + "\n")
         end
       end
-      langify("Hello World")
     end
 
     # ##
