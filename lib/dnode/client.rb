@@ -57,8 +57,8 @@ module DNode
     def update_methods(remotes)
       remotes.each do |remote|
         # Here we need to add the right methods required for everything to run smooth!
-        self.class.send(:define_method, remote[1][1]) do |*args|
-          send(Request.new(remote[1][0], *args))
+        self.class.send(:define_method, remote[1][1]) do |*args, &block|
+          send(Request.new(remote[1][0], *args, &block))
         end
       end
     end
