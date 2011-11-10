@@ -1,17 +1,21 @@
 ##
-# This is the Dnode request object.
+# This is the Dnode response object.
 
 # it gets its data from the server and not much more :D
 module DNode
   class Response
     
-    def initialize(line)
+    def initialize(line, connection)
       @scrub = Scrub.new
+      @connection = connection
       req = JSON(line)
       
       
       args = @scrub.unscrub(req) do |id|
-        lambda { |*argv| self.request(id, *argv) }
+        # lambda { |*argv| 
+        #   self.request(id, *argv) 
+        # }
+        id
       end
 
       if req['method'].is_a? Integer then
@@ -26,8 +30,7 @@ module DNode
           cb.call(*argv)
         end
       elsif req['method'] == 'methods' then
-        # No need for this because ruby has method_missing! so we don't need to list methods... 
-        # @remote.update(args[0])
+        @connection.update_methods(args[0])
         # js = JSObject.create(@remote)
         # 
         # if @block.arity === 0 then

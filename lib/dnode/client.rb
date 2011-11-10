@@ -47,16 +47,22 @@ module DNode
     ##
     # Called when new line was received
     def receive_line(line)
-      puts "-> #{line}"
-      response = Response.new(line)
+      puts ">> #{line}"
+      response = Response.new(line, self)
     end
     
     ##
-    # Creates requests with missing methods.
-    def method_missing(method_sym, *args, &block)
-      request = Request.new(method_sym, args, &block)
-      puts "<- #{request.data}"
-      send_data(request.data + "\n")
+    # Re-defines methods locally based on remote's methods.
+    def update_methods(methods)
+      # Here we need to add the right methods required for everything to run smooth!
+      methods.each do |signature, meth_id|
+        self.class.send(:define_method, signature) do |*args|
+          request = Request.new(meth_id, *args)
+          puts "<< #{request.data}"
+          send_data(request.data + "\n")
+        end
+      end
+      langify("Hello World")
     end
 
     # ##
