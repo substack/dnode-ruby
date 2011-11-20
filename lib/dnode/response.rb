@@ -4,17 +4,15 @@
 # it gets its data from the server and not much more :D
 module DNode
   class Response
+    attr_reader :callbacks, :arguments, :method
     
-    def initialize(line, connection)
-      @connection = connection
+    def initialize(line)
       resp = JSON(line)
-      if resp['method'].is_a? Integer 
-        request = @connection.requests[resp['method']]
-        request.callback.call(*resp['arguments'])
-      elsif resp['method'] == 'methods' 
-        @connection.update_methods(resp['callbacks'])
-      end
+      puts resp.inspect
+      @method   = resp['method']
+      @callbacks = resp['callbacks']
+      @arguments = resp['arguments']
     end
-
+    
   end
 end

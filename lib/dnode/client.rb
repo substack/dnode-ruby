@@ -37,6 +37,13 @@ module DNode
     def initialize params
       @block = params[:block] || lambda {}
       @requests = {} # A set of all current requests.
+      
+      request = Request.new("methods", {}) do |response|
+        puts response.inspect
+        update_methods(response.callbacks)
+      end 
+      request.id = "methods"
+      send(request)
     end
 
     ##
@@ -49,7 +56,9 @@ module DNode
     # Called when new line was received
     def receive_line(line)
       puts ">> #{line}"
-      response = Response.new(line, self)
+      response = Response.new(line)
+      request = requests[response.method]
+      request.callback.call(response) unless request.nil?
     end
     
     ##
@@ -58,66 +67,21 @@ module DNode
       remotes.each do |remote|
         # Here we need to add the right methods required for everything to run smooth!
         self.class.send(:define_method, remote[1][1]) do |*args, &block|
-          request = Request.new(remote[1][0], *args, &block) 
+          request = Request.new(remote[1][0], *args, &block)
           send(request)
         end
       end
     end
     
     def send(request)
+      request.prepare
       request.callbacks.each do |callback|
         @requests[callback[0]] = request
       end
       puts "<< #{request.data}"
       send_data(request.data + "\n")
     end
-
-    # ##
-    #  # Handling request
-    #  def handle req
-    #    args = @scrub.unscrub(req) do |id|
-    #      lambda { |*argv| self.request(id, *argv) }
-    #    end
-    # 
-    #    if req['method'].is_a? Integer then
-    #      id = req['method']
-    #      cb = @scrub.callbacks[id]
-    #      if cb.arity < 0 then
-    #        cb.call(*JSObject.create(args))
-    #      else
-    #        argv = *JSObject.create(args)
-    #        padding = argv.length.upto(cb.arity - 1).map{ nil }
-    #        argv = argv.concat(padding).take(cb.arity)
-    #        cb.call(*argv)
-    #      end
-    #    elsif req['method'] == 'methods' then
-    #      @remote.update(args[0])
-    #      js = JSObject.create(@remote)
-    # 
-    #      if @block.arity === 0 then
-    #        @block.call
-    #      else
-    #        @block.call(*[ js, self ][ 0 .. @block.arity - 1 ])
-    #      end
-    #    end
-    #  end
-    # 
-    #  ##
-    #  # Sending request
-    #  def request(method, *args)
-    #    scrubbed = @scrub.scrub(args)
-    #    data = JSON({
-    #      :method => (
-    #      if method.respond_to? :match and method.match(/^\d+$/)
-    #        then method.to_i
-    #      else method
-    #      end
-    #      ),
-    #      :links => [],
-    #      }.merge(scrubbed))
-    #      send_data(data + "\n")
-    #    end
-    end
+  end
 
 
 end
