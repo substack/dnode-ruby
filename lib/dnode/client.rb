@@ -39,9 +39,9 @@ module DNode
       @requests = {} # A set of all current requests.
       
       request = Request.new("methods", {}) do |response|
-        puts response.inspect
         update_methods(response.callbacks)
       end 
+      
       request.id = "methods"
       send(request)
     end
@@ -57,7 +57,7 @@ module DNode
     def receive_line(line)
       puts ">> #{line}"
       response = Response.new(line)
-      request = requests[response.method]
+      request = @requests[response.method]
       request.callback.call(response) unless request.nil?
     end
     
@@ -66,17 +66,25 @@ module DNode
     def update_methods(remotes)
       remotes.each do |remote|
         # Here we need to add the right methods required for everything to run smooth!
-        self.class.send(:define_method, remote[1][1]) do |*args, &block|
-          request = Request.new(remote[1][0], *args, &block)
+        self.class.send(:define_method, remote[1][1]) do |*args|
+          block = args.pop
+          request = Request.new(remote[1][0], *args) do |response|
+            block.call(response.arguments)
+          end
           send(request)
         end
       end
+      @block.call
     end
     
     def send(request)
       request.prepare
-      request.callbacks.each do |callback|
-        @requests[callback[0]] = request
+      if request.method == "methods"
+        @requests["methods"] = request
+      else
+        request.callbacks.each do |callback|
+          @requests[callback[0]] = request
+        end
       end
       puts "<< #{request.data}"
       send_data(request.data + "\n")

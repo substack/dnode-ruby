@@ -7,26 +7,35 @@ module DNode
   
   class Request
     include EventMachine::Deferrable
-    attr_reader :data, :callbacks, :callback
+    attr_reader :data, :callbacks, :callback, :method
     attr_accessor :id
-    @@id = 0
+    @@id = -1
     
     def initialize(method, *args, &callback)
-      @id = @@id = @@id + 1
-      @method = (method.respond_to? :match and method.match(/^\d+$/)) ? method.to_i : method
       @callback = callback || lambda {}
-      @args = args.push "[Function]"
+      @args     = args
+      if (method.respond_to? :match and method.match(/^\d+$/)) 
+        @id       = @@id = @@id + 1
+        @method   = method.to_i
+        @callbacks = {@id => [@callback.arity]}
+      else
+        @id       = "methods"
+        @method   = method
+        @callbacks = {}
+      end
     end
     
     def prepare
-      @callbacks = {@id => [@callback.arity]}
+      if @args.last.is_a? Proc
+        @args[@args.length-1] = "[Function]"
+      end
+      
       @data = JSON({
         :method     => @method,
-        :links      => [],
         :arguments  => @args,
-        :callbacks  => @callbacks 
-        })
+        :callbacks  => @callbacks,
+        :links      => [] 
+      })
     end
-    
   end
 end

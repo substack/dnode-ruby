@@ -8,7 +8,6 @@ module DNode
     
     def initialize(line)
       resp = JSON(line)
-      puts resp.inspect
       @method   = resp['method']
       @callbacks = resp['callbacks']
       @arguments = resp['arguments']
