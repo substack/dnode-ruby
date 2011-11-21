@@ -3,6 +3,7 @@
 
 # it gets its data from the server and not much more :D
 module DNode
+  class NotConnected < StandardError; end
   class Client < EventMachine::Connection
     include EventMachine::Protocols::LineText2
     attr_reader :requests
@@ -35,21 +36,22 @@ module DNode
     ##
     # Called by EM loop when connected.
     def initialize params
-      @block = params[:block] || lambda {}
+      @block    = params[:block] || lambda {}
       @requests = {} # A set of all current requests.
+      @ready    = false
       
       request = Request.new("methods", {}) do |response|
         update_methods(response.callbacks)
       end 
       
-      request.id = "methods"
       send(request)
     end
 
     ##
     # Called when connection terminates
+    # We need to use this to prevent more calls!
     def unbind
-      puts 'unbind'
+      @ready = false
     end
 
     ##
@@ -67,16 +69,23 @@ module DNode
       remotes.each do |remote|
         # Here we need to add the right methods required for everything to run smooth!
         self.class.send(:define_method, remote[1][1]) do |*args|
-          block = args.pop
-          request = Request.new(remote[1][0], *args) do |response|
-            block.call(response.arguments)
+          if @ready
+            block = args.pop
+            request = Request.new(remote[1][0], *args) do |response|
+              block.call(response.arguments)
+            end
+            send(request)
+          else
+            raise NotConnected
           end
-          send(request)
         end
       end
+      @ready = true
       @block.call
     end
     
+    ##
+    # Methods that sends a request. It also binds the request to the @requests hash so that we can look it up after a response.
     def send(request)
       request.prepare
       if request.method == "methods"
