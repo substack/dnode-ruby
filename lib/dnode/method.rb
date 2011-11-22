@@ -7,13 +7,12 @@
 module DNode
   class Method
     attr_accessor :id, :name, :proc
-    @@id = -1
     
-    def initialize(name,  &block)
+    def initialize(id, name, block)
       if name == "methods"
         @id = "methods"
       else
-        @id = (@@id = @@id + 1).to_s
+        @id = id
       end
       @name = name
       @proc = block

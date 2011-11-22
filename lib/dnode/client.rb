@@ -56,10 +56,10 @@ module DNode
       @methods  = {} # A hash to keep track of all methods.
       
       # let's add all the methods.
-      params[:methods].each do |method, proc|
-        method = Method.new(method, &proc)
-        @methods[method.id] = method
-      end
+      # params[:methods].each do |method, proc|
+      #   method = Method.new(method, &proc)
+      #   @methods[method.id] = method
+      # end
       
       # Let's all send the methods request
       args = Hash[*(@methods.map() {|id,m|
@@ -93,8 +93,18 @@ module DNode
           # Here we need to add the right methods required for everything to run smooth!
           self.class.send(:define_method, name) do |*args|
             if @ready
-              request = Request.new(id, args)
-              send(request)
+              scrubbed    = @scrub.scrub(args)
+              # Let's register the new methods (from the callbacks)
+              scrubbed[:callbacks].each do |c|
+                @methods[c[0]] = Method.new(c[0], c[0], args[c[1][0]])
+              end
+              
+              data = JSON({
+                :method     => id.to_i,
+                :links      => []
+              }.merge(scrubbed))
+              puts "<< #{data}"
+              send_data(data + "\n")
             else
               raise NotConnected
             end
@@ -103,11 +113,11 @@ module DNode
         @ready = true
         @block.call
       else
-        # Unnamed methods
+        # Unnamed methods (used when callbacks are provided as arguments)
         arguments = @scrub.unscrub(resp) do |id|
           lambda { |*args| 
             if @ready
-              request = Request.new(id, args)
+              request = Request.new(id.to_i, args)
               send(request)
             else
               raise NotConnected
