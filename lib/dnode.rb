@@ -6,11 +6,8 @@ require 'eventmachine'
 
 require 'dnode/client'
 require 'dnode/conn'
-require 'dnode/jsobject'
 require 'dnode/scrub'
 require 'dnode/walk'
-require 'dnode/request'
-require 'dnode/response'
 require 'dnode/method'
 
 module DNode
