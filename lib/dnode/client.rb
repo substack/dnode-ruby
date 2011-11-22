@@ -51,22 +51,12 @@ module DNode
     ##
     # Called by EM loop when connected.
     def initialize params
-      @scrub      = Scrub.new
-      @block = params[:block]
+      @scrub    = Scrub.new
+      @block    = params[:block]
       @methods  = {} # A hash to keep track of all methods.
       
-      scrubbed    = @scrub.scrub([params[:methods]])
-      # Let's register the new methods (from the callbacks)
-      scrubbed[:callbacks].each do |c|
-        @methods[c[0]] = Method.new(c[0], c[0], params[:methods][c[1][1]])
-      end
-      
-      data = JSON({
-        :method     => "methods",
-        :links      => []
-      }.merge(scrubbed))
-      puts "<< #{data}"
-      send_data(data + "\n")
+      args = [params[:methods]]
+      send("methods", args) # the spec says we should send the methods over upon connection so that the "remote" can use them :)
     end
 
     ##
@@ -79,7 +69,7 @@ module DNode
     ##
     # Called when new line was received
     def receive_line(line)
-      puts ">> #{line}"
+      # puts ">> #{line}"
       
       resp = JSON(line)
       if(resp['method'] == "methods")
@@ -92,18 +82,7 @@ module DNode
           # Here we need to add the right methods required for everything to run smooth!
           self.class.send(:define_method, name) do |*args|
             if @ready
-              scrubbed    = @scrub.scrub(args)
-              # Let's register the new methods (from the callbacks)
-              scrubbed[:callbacks].each do |c|
-                @methods[c[0]] = Method.new(c[0], c[0], args[c[1][0]])
-              end
-              
-              data = JSON({
-                :method     => id.to_i,
-                :links      => []
-              }.merge(scrubbed))
-              puts "<< #{data}"
-              send_data(data + "\n")
+              send(id.to_i, args)
             else
               raise NotConnected
             end
@@ -116,19 +95,7 @@ module DNode
         arguments = @scrub.unscrub(resp) do |id|
           lambda { |*args| 
             if @ready
-              scrubbed    = @scrub.scrub(args)
-              # Let's register the new methods (from the callbacks)
-              scrubbed[:callbacks].each do |c|
-                @methods[c[0]] = Method.new(c[0], c[0], args[c[1][0]])
-              end
-              
-              data = JSON({
-                :method     => id.to_i,
-                :links      => []
-              }.merge(scrubbed))
-              puts "<< #{data}"
-              send_data(data + "\n")
-              
+              send(id.to_i, args)
             else
               raise NotConnected
             end
@@ -139,6 +106,30 @@ module DNode
       end
     end
     
+    
+    ##
+    # Send method. This does the scrub magic.
+    def send(name, args)
+      scrubbed    = @scrub.scrub(args)
+      # Let's register the new methods (from the callbacks)
+      scrubbed[:callbacks].each do |c|
+        if name == "methods"
+          @methods[c[0]] = Method.new(c[0], c[0], args[0][c[1][1]])
+        elsif c[1][1]
+          @methods[c[0]] = Method.new(c[0], c[0], args[c[1][1]])
+        else
+          @methods[c[0]] = Method.new(c[0], c[0], args[c[1][0]])
+        end
+      end
+      
+      # the spec says we should send the methods over upon connection so that the "remote" can use them :)
+      data = JSON({
+        :method     => name,
+        :links      => []
+      }.merge(scrubbed))
+      # puts "<< #{data}"
+      send_data(data + "\n")
+    end
   end
 
 
