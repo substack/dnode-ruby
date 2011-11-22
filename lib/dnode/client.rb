@@ -55,19 +55,18 @@ module DNode
       @block = params[:block]
       @methods  = {} # A hash to keep track of all methods.
       
-      # let's add all the methods.
-      # params[:methods].each do |method, proc|
-      #   method = Method.new(method, &proc)
-      #   @methods[method.id] = method
-      # end
+      scrubbed    = @scrub.scrub([params[:methods]])
+      # Let's register the new methods (from the callbacks)
+      scrubbed[:callbacks].each do |c|
+        @methods[c[0]] = Method.new(c[0], c[0], params[:methods][c[1][1]])
+      end
       
-      # Let's all send the methods request
-      args = Hash[*(@methods.map() {|id,m|
-        [m.name, m.proc]
-      }.flatten)]
-      callbacks = {}
-      request = Request.new('methods', [args])
-      send(request)
+      data = JSON({
+        :method     => "methods",
+        :links      => []
+      }.merge(scrubbed))
+      puts "<< #{data}"
+      send_data(data + "\n")
     end
 
     ##
@@ -117,26 +116,29 @@ module DNode
         arguments = @scrub.unscrub(resp) do |id|
           lambda { |*args| 
             if @ready
-              request = Request.new(id.to_i, args)
-              send(request)
+              scrubbed    = @scrub.scrub(args)
+              # Let's register the new methods (from the callbacks)
+              scrubbed[:callbacks].each do |c|
+                @methods[c[0]] = Method.new(c[0], c[0], args[c[1][0]])
+              end
+              
+              data = JSON({
+                :method     => id.to_i,
+                :links      => []
+              }.merge(scrubbed))
+              puts "<< #{data}"
+              send_data(data + "\n")
+              
             else
               raise NotConnected
             end
           }
         end
-
         method = @methods[resp['method']]
         method.proc.call(arguments) unless method.nil?
       end
     end
     
-    ##
-    # Methods that sends a request. It also binds the request to the @requests hash so that we can look it up after a response.
-    def send(request)
-      request.prepare
-      puts "<< #{request.data}"
-      send_data(request.data + "\n")
-    end
   end
 
 
