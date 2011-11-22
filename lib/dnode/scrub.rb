@@ -1,5 +1,3 @@
-require 'dnode/walk'
-
 class Scrub
     def initialize
         @callbacks = {}

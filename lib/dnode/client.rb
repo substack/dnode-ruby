@@ -8,42 +8,65 @@ module DNode
     include EventMachine::Protocols::LineText2
     attr_reader :requests
 
-    def self.from_args *args, &block
-      types = args.inject({}) { |acc,x| acc.merge(x.class.to_s => x) }
-      kw = types['Hash'] || {}
-      {
-        :host => kw['host'] || kw[:host] || types['String'] || 'localhost',
-        :port => kw['port'] || kw[:port] || types['Fixnum'] || 5050,
-        :block => block || kw['block'] || kw[:block] || types['Proc'],
-      }
-    end
-
     ##
     # sugar for those people who don't want to run their reactor
     def self.connect *args, &block
       EM.run do 
-        start args, &block
+        start_client *args, &block
       end
     end
 
     ##
-    # Initiates the connection. 
-    def self.start *args, &block
-      params = from_args(*args, &block)
+    # sugar for those people who don't want to run their reactor. the first arguments needs to be a port number
+    def self.listen *args, &block
+      EM.run do 
+        start_server *args, &block
+      end
+    end
+
+    ##
+    # Initiates the connection to an existing/running server (dnode protocol is actually symetrical, so servers are clients. We just need to have a first running client which will act as a server)
+    def self.start_client *params, &block
+      params = params[0]
+      params ||= {} 
+      params[:host] ||= 'localhost'
+      params[:port] ||= 5050
+      params[:block] = block || lambda {}
+      params[:methods] ||= {}
       EM.connect(params[:host], params[:port], DNode::Client, params)
+    end
+    
+    ##
+    # Initiates the connection. 
+    def self.start_server *params, &block
+      params = params[0]
+      params ||= {} 
+      params[:host] ||= 'localhost'
+      params[:port] ||= 5050
+      params[:block] = block || lambda {}
+      params[:methods] ||= {}
+      EM.start_server(params[:host], params[:port], DNode::Client, params)
     end
 
     ##
     # Called by EM loop when connected.
     def initialize params
-      @block    = params[:block] || lambda {}
-      @requests = {} # A set of all current requests.
-      @ready    = false
+      @scrub      = Scrub.new
+      @block = params[:block]
+      @methods  = {} # A hash to keep track of all methods.
       
-      request = Request.new("methods", {}) do |response|
-        update_methods(response.callbacks)
-      end 
+      # let's add all the methods.
+      params[:methods].each do |method, proc|
+        method = Method.new(method, &proc)
+        @methods[method.id] = method
+      end
       
+      # Let's all send the methods request
+      args = Hash[*(@methods.map() {|id,m|
+        [m.name, m.proc]
+      }.flatten)]
+      callbacks = {}
+      request = Request.new('methods', [args])
       send(request)
     end
 
@@ -58,43 +81,49 @@ module DNode
     # Called when new line was received
     def receive_line(line)
       puts ">> #{line}"
-      response = Response.new(line)
-      request = @requests[response.method]
-      request.callback.call(response) unless request.nil?
-    end
-    
-    ##
-    # Re-defines methods locally based on remote's methods.
-    def update_methods(remotes)
-      remotes.each do |remote|
-        # Here we need to add the right methods required for everything to run smooth!
-        self.class.send(:define_method, remote[1][1]) do |*args|
-          if @ready
-            block = args.pop
-            request = Request.new(remote[1][0], *args) do |response|
-              block.call(response.arguments)
-            end
-            send(request)
-          else
-            raise NotConnected
-          end
+      
+      resp = JSON(line)
+      if(resp['method'] == "methods")
+        # Named methods
+        arguments = @scrub.unscrub(resp) do |id|
+          id
         end
+        remote_methods = arguments[0]
+        remote_methods.each do |name, id|
+          # Here we need to add the right methods required for everything to run smooth!
+          self.class.send(:define_method, name) do |*args|
+            if @ready
+              request = Request.new(id, args)
+              send(request)
+            else
+              raise NotConnected
+            end
+          end
+        end if remote_methods
+        @ready = true
+        @block.call
+      else
+        # Unnamed methods
+        arguments = @scrub.unscrub(resp) do |id|
+          lambda { |*args| 
+            if @ready
+              request = Request.new(id, args)
+              send(request)
+            else
+              raise NotConnected
+            end
+          }
+        end
+
+        method = @methods[resp['method']]
+        method.proc.call(arguments) unless method.nil?
       end
-      @ready = true
-      @block.call
     end
     
     ##
     # Methods that sends a request. It also binds the request to the @requests hash so that we can look it up after a response.
     def send(request)
       request.prepare
-      if request.method == "methods"
-        @requests["methods"] = request
-      else
-        request.callbacks.each do |callback|
-          @requests[callback[0]] = request
-        end
-      end
       puts "<< #{request.data}"
       send_data(request.data + "\n")
     end

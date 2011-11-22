@@ -8,9 +8,12 @@ module DNode
     
     def initialize(line)
       resp = JSON(line)
-      @method   = resp['method']
-      @callbacks = resp['callbacks']
-      @arguments = resp['arguments']
+      @method     = resp['method']
+      @scrub      = Scrub.new
+  
+      @arguments = @scrub.unscrub(resp) do |id|
+        lambda { |*argv| self.request(id, *argv) }
+      end
     end
     
   end

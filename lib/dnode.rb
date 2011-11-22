@@ -11,6 +11,7 @@ require 'dnode/scrub'
 require 'dnode/walk'
 require 'dnode/request'
 require 'dnode/response'
+require 'dnode/method'
 
 module DNode
 
