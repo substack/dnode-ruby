@@ -11,5 +11,4 @@ require 'dnode/walk'
 require 'dnode/method'
 
 module DNode
-
 end

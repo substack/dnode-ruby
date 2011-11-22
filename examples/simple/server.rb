@@ -1,9 +1,13 @@
-require 'rubygems'
-require 'dnode'
+$: << "."
+require File.dirname(__FILE__)+"/../../lib/dnode.rb"
 
-DNode.new({
-    :f => proc { |x,cb| 
-      cb.call(x + 1337) 
-    },
-    :g => proc { |x,cb| cb.call(x - 1337) }
-}).listen(5050)
+EM.run do 
+  server = DNode::Client.listen({
+    :port => 5050,
+    :methods => {
+      :zing => proc { |n,cb| 
+        cb.call(n*100) 
+      }
+    }
+  }) 
+end
