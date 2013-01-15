@@ -37,7 +37,7 @@ class Walk
                 @path.pop
             end
             return copy
-        elsif [ Numeric, String, Proc ].select{ |x| value.is_a? x }.any?
+        elsif [ Numeric, String, TrueClass, FalseClass, NilClass, Proc ].select{ |x| value.is_a? x }.any?
             return value
         else
             # only serve up the object's "own" methods
